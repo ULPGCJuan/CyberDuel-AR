@@ -9,11 +9,11 @@ let reticle = null;
 let placed = false;
 
 const totalTargets = 15;
+let touchedTargets = 0;
 
 init();
 
 function init() {
-
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera();
 
@@ -43,7 +43,7 @@ function init() {
 }
 
 function createRandomTargets(center) {
-  const maxDistance = 1; 
+  const maxDistance = 1;
 
   // Dirección del reticle
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(reticle.quaternion).normalize();
@@ -75,6 +75,33 @@ function createRandomTargets(center) {
   }
 }
 
+function onSelect() {
+  if (reticle.visible && !placed) {
+    createRandomTargets(reticle.position);
+    placed = true;
+  } else {
+    const raycaster = new THREE.Raycaster();
+    const tempMatrix = new THREE.Matrix4();
+    tempMatrix.identity().extractRotation(controller.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+    const intersects = raycaster.intersectObjects(scene.children);
+    for (const intersect of intersects) {
+      const obj = intersect.object;
+      if (obj.userData.clickable && !obj.userData.touched) {
+        obj.material.color.set(0x0000ff);
+        obj.userData.touched = true;
+        touchedTargets++;
+
+        if (touchedTargets >= Math.ceil(totalTargets / 2)) {
+          //TODO: Logica para acabar y cerrar conexion con el servidor
+        }
+        break;
+      }
+    }
+  }
+}
 
 async function initHitTestSource() {
   const session = renderer.xr.getSession();
