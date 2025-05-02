@@ -6,7 +6,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
     <script type="module" src="./main.js" defer></script>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body style="margin: 0; overflow: hidden;"></body>
+  <body>
+    <div id="start-screen">
+      <h1>CyberDuel AR</h1>
+      <div id="start-buttons">
+        <button id="play-button">Jugar</button>
+        <button id="instructions-button">Instrucciones</button>
+      </div>
+    </div>
+  
+    <div id="config-screen" style="display: none;">
+      <h2>Selecciona el número de esferas</h2>
+      <input type="range" id="sphere-count" min="5" max="30" value="15" />
+      <div id="sphere-count-display">15 esferas</div>
+      
+      <p id="ready-message" style="margin-top: 10px; font-style: italic; color: #ccc;">
+        ✅ Cuando estés en una zona segura y todo esté listo,<br/>
+        pulsa <strong>“Start AR”</strong> para comenzar.
+      </p>
+      
+      <div id="start-game-button"></div>
+      <button id="config-back-button">Volver</button>
+    </div>
+  
+    <div id="instructions-screen" style="display: none;">
+      <p>
+        <strong>¿Cómo se juega?</strong><br/>
+        En <strong>CyberDuel AR</strong> deberás encontrar y tocar esferas en tu entorno real.<br/>
+        Cada esfera activará un <strong>minijuego aleatorio</strong> que deberás completar para ganar un punto.<br/>
+        Si completas más del <strong>50%</strong> de las esferas, ¡ganas la partida!
+      </p>
+  
+      <p>
+        <strong>Tipos de minijuegos:</strong><br/>
+        - <em>Toca 20 veces</em>: pulsa la pantalla rápidamente hasta llegar a 20 toques.<br/>
+        - <em>Introduce el código</em>: memoriza y escribe un código aleatorio de 8 caracteres.<br/>
+        - <em>Resuelve una suma</em>: responde correctamente una operación sencilla.<br/>
+        - <em>Mantén presionado</em>: mantén pulsado un botón durante varios segundps.<br/>
+        - <em>Elige el símbolo correcto</em>: toca el símbolo indicado entre varios botones.<br/>
+        - <em>¡NO ME TOQUES!</em>: aparece un gran botón... <br/>
+        - <em>Trivia</em>: responde preguntas cortas de cultura general.
+      </p>
+  
+      <p>
+        <strong>Consejo:</strong><br/>
+        ¡Presta atención y actúa rápido! Algunos minijuegos se reinician si fallas.
+      </p>
+      
+      <p style="font-style: italic; color: #ccc;">
+        🔎 Nota: Antes de comenzar el juego, colócate cerca de una pared o área amplia y libre de obstáculos.<br/>
+        El juego requiere espacio suficiente para colocar las esferas en tu entorno AR.
+      </p>
+      <button id="back-button">Volver</button>
+    </div>
+    <div id="minigame-container"></div>
+    <div id="progress-wrapper" style="display: none;">
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+      <div id="progress-counter">0 / 15 esferas</div>
+    </div>
+    
+    <div id="win-screen" style="display: none;">
+      <div id="win-message">
+        <h2>🎉 ¡Has ganado!</h2>
+        <p>Has tocado suficientes esferas y superado los minijuegos.</p>
+        <p>Gracias por jugar a <strong>CyberDuel AR</strong>.<br/> Esperamos que te hayas divertido.</p>
+      </div>
+    </div>
+  </body>
 </html>

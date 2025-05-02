@@ -2,7 +2,7 @@
 node_modules/
 npm-debug.log
 yarn-error.log
-
+cert/
 
 # Visual Studio Code
 .vscode/*
@@ -15,3 +15,4 @@ yarn-error.log
 # System files
 .DS_Store
 Thumbs.db
+
