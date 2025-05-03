@@ -52,6 +52,30 @@ body {
     flex-direction: column; 
     gap: 10px;
   }
+
+  #waiting-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  
+  .waiting-box {
+    background: #1c1c1c;
+    width: 80%;
+    border-radius: 12px;
+    box-shadow: 0 0 20px #00ff88;
+    font-size: 1.5rem;
+    text-align: center;
+  }
   
   #minigame-container button,
   #back-button,

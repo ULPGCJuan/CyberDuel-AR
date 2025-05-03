@@ -5,6 +5,12 @@ let scene, camera, renderer, controller;
 let totalTargets = 15;
 let touchedTargets = 0;
 let minigameActive = false;
+let socket;
+let isHost = false;
+let userPosition, userQuaternion;
+let arSessionStarted = false;
+
+
 
 document.getElementById('play-button').onclick = () => {
   document.getElementById('start-screen').style.display = 'none';
@@ -32,6 +38,43 @@ const display = document.getElementById('sphere-count-display');
 sphereRange.oninput = () => {
   display.textContent = `${sphereRange.value} esferas`;
 };
+
+// Conexión WebSocket
+function connectWebSocket() {
+  socket = new WebSocket('wss://localhost:8080'); // Cambia esto a la IP de tu equipo
+
+  socket.onopen = () => console.log('Conectado al WebSocket');
+
+  socket.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+
+    if (msg.type === 'role') {
+      isHost = msg.role === 'host';
+      console.log('Rol asignado:', isHost ? 'HOST' : 'CLIENTE');
+    }
+
+    if (msg.type === 'start' && isHost) {
+      // El host genera las esferas
+      const positions = generateSpherePositions(userPosition, userQuaternion);
+      socket.send(JSON.stringify({ type: 'positions', data: positions }));
+      createTargets(positions);
+      document.getElementById('waiting-overlay').style.display = 'none';
+    }
+
+    if (msg.type === 'positions' && !isHost) {
+      // El cliente recibe las posiciones
+      createTargets(msg.data);
+      document.getElementById('waiting-overlay').style.display = 'none';
+    }
+
+    if (msg.type === 'game-over') {
+      const ganador = msg.winner === (isHost ? 'host' : 'client') ? 'Tú' : msg.winner === 'host' ? 'Jugador 1 (Anfitrion)' : 'Jugador 2 (Invitado)';
+      showWinMessage(ganador);
+    }
+
+  };
+}
+
 
 function showCustomARButton() {
   const container = document.getElementById('start-game-button');
@@ -65,10 +108,14 @@ function showCustomARButton() {
 
   
   renderer.xr.addEventListener('sessionstart', () => {
+    arSessionStarted = true;
+    connectWebSocket();
     totalTargets = parseInt(document.getElementById('sphere-count').value);
     document.getElementById('config-screen').style.display = 'none';
     document.body.appendChild(renderer.domElement);
     init(); 
+
+    document.getElementById('waiting-overlay').style.display = 'flex';
   });
 }
 
@@ -88,37 +135,54 @@ function init() {
   renderer.setAnimationLoop(render);
 }
 
-function showWinScreen() {
-  document.getElementById('win-screen').style.display = 'flex';
+function showWinMessage(winnerName) {
+  const winScreen = document.getElementById('win-screen');
+  const winMessage = document.getElementById('win-message');
+  
+  winMessage.innerHTML = `
+    <h2>🎉 ¡Partida terminada!</h2>
+    <p>Ganador: <strong>${winnerName}</strong></p>
+    <p>Gracias por jugar a CyberDuel AR</p>
+  `;
+  
+  winScreen.style.display = 'flex';
 }
 
-function createTargets(userPosition, userQuaternion) {
+function generateSpherePositions(userPosition, userQuaternion) {
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(userQuaternion).normalize();
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(userQuaternion).normalize();
+  const center = new THREE.Vector3().copy(userPosition).add(forward.clone().multiplyScalar(2));
 
-  const center = new THREE.Vector3().copy(userPosition).add(forward.clone().multiplyScalar(2)); 
+  const positions = [];
 
   for (let i = 0; i < totalTargets; i++) {
-    const sphere = new THREE.Mesh(
-      new THREE.SphereGeometry(0.07, 16, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
-    );
-
-    // Posición aleatoria de las esferas
     const x = (Math.random() - 0.5) * 3.0; 
     const y = (Math.random() - 0.5) * 2.0; 
     const z = Math.random() * 2.0; 
 
-    const position = new THREE.Vector3().copy(center)
+    const pos = new THREE.Vector3().copy(center)
       .add(right.clone().multiplyScalar(x))
       .add(new THREE.Vector3(0, y, 0))
       .add(forward.clone().multiplyScalar(z));
 
-    sphere.position.copy(position);
+    positions.push({ x: pos.x, y: pos.y, z: pos.z });
+  }
+
+  return positions;
+}
+
+function createTargets(positions) {
+  positions.forEach(pos => {
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xffffff })
+    );
+    sphere.position.set(pos.x, pos.y, pos.z);
     sphere.userData.clickable = true;
     sphere.userData.touched = false;
     scene.add(sphere);
-  }
+  });
+
   updateProgressCounter();
 }
 
@@ -141,7 +205,8 @@ function onSelect() {
         updateProgressCounter();
 
         if (touchedTargets >= Math.ceil(totalTargets / 2)) {
-          showWinScreen();
+          socket.send(JSON.stringify({ type: 'game-over', winner: isHost ? 'host' : 'client' }));
+          showWinMessage(isHost ? 'Jugador 1' : 'Jugador 2');
         }
       });
       break;
@@ -151,16 +216,14 @@ function onSelect() {
 
 function render(timestamp, frame) {
   const refSpace = renderer.xr.getReferenceSpace();
-  if (refSpace) {
+  if (refSpace && frame) {
     const viewerPose = frame.getViewerPose(refSpace);
     if (viewerPose && viewerPose.transform) {
       const pos = viewerPose.transform.position;
       const orient = viewerPose.transform.orientation;
-      const userPos = new THREE.Vector3(pos.x, pos.y, pos.z);
-      const userQuat = new THREE.Quaternion(orient.x, orient.y, orient.z, orient.w);
-      if (scene.children.length <= 2) {
-        createTargets(userPos, userQuat);
-      }
+
+      userPosition = new THREE.Vector3(pos.x, pos.y, pos.z);
+      userQuaternion = new THREE.Quaternion(orient.x, orient.y, orient.z, orient.w);
     }
   }
 
@@ -265,8 +328,8 @@ function minigameCode(container, onComplete) {
 function minigameMath(container, onComplete) {
   addMinigameHeader(container);
 
-  const a = Math.floor(Math.random() * 10);
-  const b = Math.floor(Math.random() * 10);
+  const a = Math.floor(Math.random() * 100);
+  const b = Math.floor(Math.random() * 100);
   const result = a + b;
 
   const instruction = document.createElement('div');
@@ -339,17 +402,21 @@ function minigameTrivia(container, onComplete) {
   addMinigameHeader(container);
 
   const questions = [
-    { q: "¿Cuál es la capital de Francia?", a: "paris" },
+    { q: "¿Cuál es la capital de Japón?", a: "tokio" },
     { q: "¿Cuántos planetas hay en el sistema solar?", a: "8" },
     { q: "¿Quién pintó la Mona Lisa?", a: "da vinci" },
     { q: "¿Cuál es el río más largo del mundo?", a: "amazonas" },
     { q: "¿En qué continente está Egipto?", a: "africa" },
     { q: "¿Cuántos lados tiene un triángulo?", a: "3" },
     { q: "¿Cuál es el océano más grande?", a: "pacifico" },
-    { q: "¿Quién escribió 'Don Quijote'?", a: "cervantes" },
+    { q: "¿Quién escribió 'El Quijote'?", a: "cervantes" },
     { q: "¿Qué gas respiramos para vivir?", a: "oxigeno" },
     { q: "¿Cuál es el planeta rojo?", a: "marte" },
     { q: "¿Cuántos días tiene un año?", a: "365" },
+    { q: "¿Cuál es el animal más grande del mundo?", a: "ballena" },
+    { q: "¿Qué país tiene forma de bota?", a: "italia" },
+    { q: "¿Qué animal es conocido como el rey de la selva?", a: "león" },
+    { q: "¿Cuál es el país más poblado del mundo?", a: "china" }
   ];
 
   const item = questions[Math.floor(Math.random() * questions.length)];
