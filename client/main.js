@@ -68,7 +68,8 @@ function connectWebSocket() {
     }
 
     if (msg.type === 'game-over') {
-      const ganador = msg.winner === (isHost ? 'host' : 'client') ? 'Tú' : msg.winner === 'host' ? 'Jugador 1 (Anfitrion)' : 'Jugador 2 (Invitado)';
+      const ganador = msg.winner === (isHost ? 'host' : 'client') ? 'Tú' :
+       msg.winner === 'host' ? 'Jugador 1 (Anfitrion)' : 'Jugador 2 (Invitado)';
       showWinMessage(ganador);
     }
 
@@ -204,7 +205,7 @@ function onSelect() {
         
         updateProgressCounter();
 
-        if (touchedTargets >= Math.ceil(totalTargets / 2)) {
+        if (touchedTargets == totalTargets) {
           socket.send(JSON.stringify({ type: 'game-over', winner: isHost ? 'host' : 'client' }));
           showWinMessage(isHost ? 'Jugador 1' : 'Jugador 2');
         }

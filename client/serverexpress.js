@@ -11,7 +11,6 @@ const options = {
   cert: fs.readFileSync(path.join(__dirname+"/cert", 'certificado.pem')),
 };
 
-// Sirve archivos desde la carpeta actual (client/)
 app.use(express.static(__dirname));
 
 // Ruta raíz

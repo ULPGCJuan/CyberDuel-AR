@@ -3,14 +3,13 @@ const https = require('https');
 const WebSocket = require('ws');
 const path = require('path');
 
-// Rutas a tus certificados
+
 const options = {
   key: fs.readFileSync(path.join(__dirname, '../client/cert/clave.pem')),
   cert: fs.readFileSync(path.join(__dirname, '../client/cert/certificado.pem')),
 };
 
 // Crear servidor HTTPS vacío para WebSocket
-
 const httpsServer = https.createServer(options);
 
 const wss = new WebSocket.Server({ server: httpsServer });
