@@ -53,10 +53,6 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout clave.pem -out certificado.pem
 ### 3. Iniciar los servidores
 
 ```bash
-Servidor HTTPS (cliente WebXR)
-bash
-Copiar
-Editar
 cd client
 node serverexpress.js
 Esto arrancará el servidor en https://<IP_LOCAL>:443.
@@ -64,8 +60,6 @@ Esto arrancará el servidor en https://<IP_LOCAL>:443.
 
 Servidor WebSocket
 ```bash
-Copiar
-Editar
 cd server
 node ws-server.js
 Esto iniciará el servidor WSS en wss://<IP_LOCAL>:8080.
