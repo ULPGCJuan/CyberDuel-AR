@@ -43,14 +43,14 @@ cd ../server
 npm install
 ```
 
-2. Generar certificados autofirmados
+### 2. Generar certificados autofirmados
 Para permitir la ejecución de WebXR y WebSockets en dispositivos móviles mediante HTTPS/WSS, debes generar un certificado autofirmado. Puedes hacerlo con OpenSSL o siguiendo la documentación oficial de Microsoft:
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes -keyout clave.pem -out certificado.pem -days 365
 ```
 
-3. Iniciar los servidores
+### 3. Iniciar los servidores
 
 ```bash
 Servidor HTTPS (cliente WebXR)
@@ -71,7 +71,7 @@ node ws-server.js
 Esto iniciará el servidor WSS en wss://<IP_LOCAL>:8080.
 ```
 
-4. Uso desde el móvil
+### 4. Uso desde el móvil
 
 - Asegúrate de estar en la misma red WiFi que el servidor.
 
