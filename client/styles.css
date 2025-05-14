@@ -86,6 +86,7 @@ body {
   }
   
   #minigame-container button,
+  #start-match-button,
   #back-button,
   #config-back-button {
     font-size: 18px;

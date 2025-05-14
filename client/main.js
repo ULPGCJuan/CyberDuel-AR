@@ -50,7 +50,23 @@ function connectWebSocket() {
 
     if (msg.type === 'role') {
       isHost = msg.role === 'host';
-      console.log('Rol asignado:', isHost ? 'HOST' : 'CLIENTE');
+      socket.role = msg.role; 
+      console.log('Rol asignado:', msg.role);
+    }
+
+    if (msg.type === 'connected-users') {
+      const numUsers = msg.count;
+      const status = document.getElementById('waiting-status');
+      status.textContent = `Jugadores conectados: ${numUsers}/3`;
+
+      if (isHost) {
+        const startBtn = document.getElementById('start-match-button');
+        startBtn.style.display = numUsers >= 1 ? 'inline-block' : 'none';
+        startBtn.onclick = () => {
+          socket.send(JSON.stringify({ type: 'start' }));
+          startBtn.style.display = 'none';
+        };
+      }
     }
 
     if (msg.type === 'start' && isHost) {
@@ -68,9 +84,19 @@ function connectWebSocket() {
     }
 
     if (msg.type === 'game-over') {
-      const ganador = msg.winner === (isHost ? 'host' : 'client') ? 'Tú' :
-       msg.winner === 'host' ? 'Jugador 1 (Anfitrion)' : 'Jugador 2 (Invitado)';
-      showWinMessage(ganador);
+      const winner = msg.winner;
+      let displayName;
+
+      if ((isHost && winner === 'host') || (!isHost && winner === socket.role)) {
+        displayName = 'Tú';
+      } else {
+        if (winner === 'host') displayName = 'Jugador 1 (Anfitrión)';
+        else if (winner === 'client2') displayName = 'Jugador 2 (Invitado)';
+        else if (winner === 'client3') displayName = 'Jugador 3 (Invitado)';
+        else displayName = 'Otro jugador';
+      }
+
+      showWinMessage(displayName);
     }
 
   };
@@ -206,8 +232,9 @@ function onSelect() {
         updateProgressCounter();
 
         if (touchedTargets == totalTargets) {
-          socket.send(JSON.stringify({ type: 'game-over', winner: isHost ? 'host' : 'client' }));
-          showWinMessage(isHost ? 'Jugador 1' : 'Jugador 2');
+          const winnerRole = isHost ? 'host' : (socket.role || 'client');
+          socket.send(JSON.stringify({ type: 'game-over', winner: winnerRole }));
+          showWinMessage('Tú');
         }
       });
       break;
