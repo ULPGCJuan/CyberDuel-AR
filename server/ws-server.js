@@ -48,6 +48,30 @@ wss.on('connection', (ws) => {
       });
     }
 
+
+    if (msg.type === 'sphere-update') {
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'sphere-update',
+            index: msg.index,
+            owner: msg.owner
+          }));
+        }
+      });
+    }
+
+    if (msg.type === 'score-update') {
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'score-update',
+            scores: msg.scores
+          }));
+        }
+      });
+    }
+
     if (msg.type === 'game-over') {
       // Enviar a todos los clientes la información del juego terminado
       clients.forEach(client => {

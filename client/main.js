@@ -10,6 +10,8 @@ let isHost = false;
 let userPosition, userQuaternion;
 let arSessionStarted = false;
 
+let playerScores = {};
+
 
 
 document.getElementById('play-button').onclick = () => {
@@ -82,6 +84,25 @@ function connectWebSocket() {
       createTargets(msg.data);
       document.getElementById('waiting-overlay').style.display = 'none';
     }
+
+    if (msg.type === 'score-update') {
+      playerScores = msg.scores;
+      updateProgressCounter();
+    }
+
+    if (msg.type === 'sphere-update') {
+      const target = scene.children.find(obj =>
+        obj.userData && obj.userData.index === msg.index
+      );
+
+      if (target && !target.userData.touched) {
+        target.userData.touched = true;
+        target.userData.owner = msg.owner;
+        target.material.color.set(getColorByOwner(msg.owner, true));
+        updateProgressCounter();
+      }
+    }
+
 
     if (msg.type === 'game-over') {
       const winner = msg.winner;
@@ -175,6 +196,25 @@ function showWinMessage(winnerName) {
   winScreen.style.display = 'flex';
 }
 
+
+function getColorByOwner(owner, touched) {
+  const dark = {
+    host: 0x003366,      // azul oscuro
+    client2: 0x660000,   // rojo oscuro
+    client3: 0x666600,   // amarillo oscuro
+    neutral: 0xffffff    // blanco
+  };
+
+  const bright = {
+    host: 0x3399ff,      // azul brillante
+    client2: 0xff3333,   // rojo brillante
+    client3: 0xffff33,   // amarillo brillante
+    neutral: 0xcccccc    // gris claro
+  };
+
+  return touched ? bright[owner] : dark[owner];
+}
+
 function generateSpherePositions(userPosition, userQuaternion) {
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(userQuaternion).normalize();
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(userQuaternion).normalize();
@@ -183,30 +223,45 @@ function generateSpherePositions(userPosition, userQuaternion) {
   const positions = [];
 
   for (let i = 0; i < totalTargets; i++) {
-    const x = (Math.random() - 0.5) * 3.0; 
-    const y = (Math.random() - 0.5) * 2.0; 
-    const z = Math.random() * 2.0; 
+    const x = (Math.random() - 0.5) * 3.0;
+    const y = (Math.random() - 0.5) * 2.0;
+    const z = Math.random() * 2.0;
 
     const pos = new THREE.Vector3().copy(center)
       .add(right.clone().multiplyScalar(x))
       .add(new THREE.Vector3(0, y, 0))
       .add(forward.clone().multiplyScalar(z));
 
-    positions.push({ x: pos.x, y: pos.y, z: pos.z });
+    positions.push({
+      x: pos.x,
+      y: pos.y,
+      z: pos.z,
+      owner: 'neutral',
+      touched: false
+    });
   }
 
   return positions;
 }
 
+
 function createTargets(positions) {
-  positions.forEach(pos => {
+  positions.forEach((pos, i) => {
+    const color = getColorByOwner(pos.owner || 'neutral', pos.touched);
+
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(0.07, 16, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
+      new THREE.MeshStandardMaterial({ color })
     );
+
     sphere.position.set(pos.x, pos.y, pos.z);
-    sphere.userData.clickable = true;
-    sphere.userData.touched = false;
+    sphere.userData = {
+      owner: pos.owner || 'neutral',
+      touched: pos.touched || false,
+      clickable: true,
+      index: i
+    };
+
     scene.add(sphere);
   });
 
@@ -225,13 +280,29 @@ function onSelect() {
     const obj = intersect.object;
     if (obj.userData.clickable && !obj.userData.touched) {
       showMinigame(() => {
-        obj.material.color.set(0x0000ff);
         obj.userData.touched = true;
+        obj.userData.owner = socket.role || (isHost ? 'host' : 'client2');
+        const currentOwner = obj.userData.owner;
+        if (!playerScores[currentOwner]) {
+          playerScores[currentOwner] = 0;
+        }
+        playerScores[currentOwner]++;
+        socket.send(JSON.stringify({
+          type: 'score-update',
+          scores: playerScores
+        }));
+        obj.material.color.set(getColorByOwner(obj.userData.owner, true));
         touchedTargets++;
+
+        socket.send(JSON.stringify({
+          type: 'sphere-update',
+          index: intersect.object.userData.index,
+          owner: socket.role || (isHost ? 'host' : 'client2')
+        }));
         
         updateProgressCounter();
 
-        if (touchedTargets == totalTargets) {
+        if (touchedTargets >= Math.ceil(totalTargets * 0.5)) {
           const winnerRole = isHost ? 'host' : (socket.role || 'client');
           socket.send(JSON.stringify({ type: 'game-over', winner: winnerRole }));
           showWinMessage('Tú');
@@ -259,16 +330,38 @@ function render(timestamp, frame) {
 }
 
 function updateProgressCounter() {
-  const counter = document.getElementById('progress-counter');
-  const fill = document.getElementById('progress-fill');
   const wrapper = document.getElementById('progress-wrapper');
+  const progressArea = document.getElementById('player-progress');
+  wrapper.style.display = 'flex';
 
-  counter.textContent = `${touchedTargets} / ${totalTargets} esferas`;
-  const percent = (touchedTargets / totalTargets) * 100;
-  fill.style.width = `${percent}%`;
+  const roles = Object.keys(playerScores);
 
-  wrapper.style.display = 'flex'; 
+  progressArea.innerHTML = '';
+
+  // Ordenar de mayor a menor
+  const sortedRoles = roles.sort((a, b) => playerScores[b] - playerScores[a]);
+
+  const maxScore = playerScores[sortedRoles[0]];
+
+  sortedRoles.forEach(role => {
+    const div = document.createElement('div');
+    div.className = 'score-box';
+    if (playerScores[role] === maxScore && maxScore > 0) {
+      div.classList.add('winner'); // destacar al que va primero
+    }
+
+    const name =
+      role === 'host' ? 'Jugador 1' :
+      role === 'client2' ? 'Jugador 2' :
+      role === 'client3' ? 'Jugador 3' :
+      'Jugador';
+
+    div.innerHTML = `<strong>${name}</strong><span>${playerScores[role]}</span>`;
+    progressArea.appendChild(div);
+  });
 }
+
+
 
 function showMinigame(callback) {
   
