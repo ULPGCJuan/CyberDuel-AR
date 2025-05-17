@@ -29,6 +29,12 @@ wss.on('connection', (ws) => {
 
   broadcast({ type: 'connected-users', count: clients.length });
 
+  broadcast({
+    type: 'connected-users',
+    count: clients.length,
+    roles: clients.map(c => c.role)
+  });
+
   /*if (clients.length === 2) {
     clients[0].send(JSON.stringify({ type: 'start' }));
   }*/
@@ -67,6 +73,18 @@ wss.on('connection', (ws) => {
           client.send(JSON.stringify({
             type: 'score-update',
             scores: msg.scores
+          }));
+        }
+      });
+    }
+
+    if (msg.type === 'sphere-move') {
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'sphere-move',
+            index: msg.index,
+            position: msg.position
           }));
         }
       });

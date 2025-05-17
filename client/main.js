@@ -11,6 +11,7 @@ let userPosition, userQuaternion;
 let arSessionStarted = false;
 
 let playerScores = {};
+let connectedRoles = [];
 
 
 
@@ -37,8 +38,28 @@ document.getElementById('config-back-button').onclick = () => {
 
 const sphereRange = document.getElementById('sphere-count');
 const display = document.getElementById('sphere-count-display');
+
+
+function closestValidValue(val) {
+  const min = 4;
+  const max = 31;
+  const valid = [];
+
+  for (let i = min; i <= max; i++) {
+    if ((i - 1) % 3 === 0) {
+      valid.push(i); 
+    }
+  }
+
+  return valid.reduce((prev, curr) =>
+    Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev
+  );
+}
+
 sphereRange.oninput = () => {
-  display.textContent = `${sphereRange.value} esferas`;
+  const validVal = closestValidValue(parseInt(sphereRange.value));
+  sphereRange.value = validVal;
+  display.textContent = `${validVal} esferas`;
 };
 
 // Conexión WebSocket
@@ -49,6 +70,7 @@ function connectWebSocket() {
 
   socket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
+    
 
     if (msg.type === 'role') {
       isHost = msg.role === 'host';
@@ -57,9 +79,24 @@ function connectWebSocket() {
     }
 
     if (msg.type === 'connected-users') {
+      connectedRoles = msg.roles;
       const numUsers = msg.count;
+
       const status = document.getElementById('waiting-status');
       status.textContent = `Jugadores conectados: ${numUsers}/3`;
+
+
+      const playerRole = socket.role || (isHost ? 'host' : 'client2');
+      const playerRoleInfo = document.getElementById('player-role-info');
+
+      let roleText = '';
+      if (playerRole === 'host') roleText = 'Eres el Jugador 1 (Azul oscuro)';
+      else if (playerRole === 'client2') roleText = 'Eres el Jugador 2 (Rojo oscuro)';
+      else if (playerRole === 'client3') roleText = 'Eres el Jugador 3 (Amarillo oscuro)';
+      else roleText = 'Jugador no identificado';
+
+      playerRoleInfo.textContent = roleText;
+
 
       if (isHost) {
         const startBtn = document.getElementById('start-match-button');
@@ -102,6 +139,32 @@ function connectWebSocket() {
         updateProgressCounter();
       }
     }
+
+    if (msg.type === 'sphere-move') {
+      const sphere = scene.children.find(obj =>
+        obj.userData && obj.userData.index === msg.index
+      );
+
+      if (sphere) {
+        const target = new THREE.Vector3(msg.position.x, msg.position.y, msg.position.z);
+        const steps = 20;
+        let step = 0;
+
+        const start = sphere.position.clone();
+        const delta = new THREE.Vector3().subVectors(target, start).divideScalar(steps);
+
+        const interval = setInterval(() => {
+          if (step >= steps) {
+            clearInterval(interval);
+            sphere.position.copy(target);
+          } else {
+            sphere.position.add(delta);
+            step++;
+          }
+        }, 15); 
+      }
+    }
+
 
 
     if (msg.type === 'game-over') {
@@ -199,17 +262,17 @@ function showWinMessage(winnerName) {
 
 function getColorByOwner(owner, touched) {
   const dark = {
-    host: 0x003366,      // azul oscuro
-    client2: 0x660000,   // rojo oscuro
-    client3: 0x666600,   // amarillo oscuro
-    neutral: 0xffffff    // blanco
+    host: 0x003366,      
+    client2: 0x660000,   
+    client3: 0x666600,   
+    neutral: 0xffffff    
   };
 
   const bright = {
-    host: 0x3399ff,      // azul brillante
-    client2: 0xff3333,   // rojo brillante
-    client3: 0xffff33,   // amarillo brillante
-    neutral: 0xcccccc    // gris claro
+    host: 0x3399ff,     
+    client2: 0xff3333,  
+    client3: 0xffff33,   
+    neutral: 0xcccccc    
   };
 
   return touched ? bright[owner] : dark[owner];
@@ -221,8 +284,33 @@ function generateSpherePositions(userPosition, userQuaternion) {
   const center = new THREE.Vector3().copy(userPosition).add(forward.clone().multiplyScalar(2));
 
   const positions = [];
+  const numPlayers = connectedRoles.length;
+  const playerRoles = connectedRoles.slice();
 
-  for (let i = 0; i < totalTargets; i++) {
+  
+  let personalPerPlayer = 1;
+  if (totalTargets > 10 && totalTargets <= 20) personalPerPlayer = 2;
+  else if (totalTargets > 20) personalPerPlayer = 3;
+
+  const totalPersonal = personalPerPlayer * numPlayers;
+  const totalNeutral = Math.max(totalTargets - totalPersonal, 0);
+
+  const owners = [];
+
+  for (let i = 0; i < personalPerPlayer; i++) {
+    playerRoles.forEach(role => owners.push(role));
+  }
+
+  for (let i = 0; i < totalNeutral; i++) {
+    owners.push('neutral');
+  }
+
+  for (let i = owners.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [owners[i], owners[j]] = [owners[j], owners[i]];
+  }
+
+  for (let i = 0; i < owners.length; i++) {
     const x = (Math.random() - 0.5) * 3.0;
     const y = (Math.random() - 0.5) * 2.0;
     const z = Math.random() * 2.0;
@@ -236,7 +324,7 @@ function generateSpherePositions(userPosition, userQuaternion) {
       x: pos.x,
       y: pos.y,
       z: pos.z,
-      owner: 'neutral',
+      owner: owners[i],
       touched: false
     });
   }
@@ -245,28 +333,36 @@ function generateSpherePositions(userPosition, userQuaternion) {
 }
 
 
+
 function createTargets(positions) {
   positions.forEach((pos, i) => {
-    const color = getColorByOwner(pos.owner || 'neutral', pos.touched);
+    const owner = pos.owner || 'neutral';
+    const touched = pos.touched || false;
+    const isNeutral = owner === 'neutral';
 
-    const sphere = new THREE.Mesh(
-      new THREE.SphereGeometry(0.07, 16, 16),
-      new THREE.MeshStandardMaterial({ color })
-    );
+    const geometry = isNeutral
+      ? new THREE.OctahedronGeometry(0.07)
+      : new THREE.SphereGeometry(0.07, 16, 16);
 
-    sphere.position.set(pos.x, pos.y, pos.z);
-    sphere.userData = {
-      owner: pos.owner || 'neutral',
-      touched: pos.touched || false,
+    const color = getColorByOwner(owner, touched);
+    const material = new THREE.MeshStandardMaterial({ color });
+
+    const mesh = new THREE.Mesh(geometry, material);
+
+    mesh.position.set(pos.x, pos.y, pos.z);
+    mesh.userData = {
+      owner,
+      touched,
       clickable: true,
       index: i
     };
 
-    scene.add(sphere);
+    scene.add(mesh);
   });
 
   updateProgressCounter();
 }
+
 
 function onSelect() {
   const raycaster = new THREE.Raycaster();
@@ -279,14 +375,55 @@ function onSelect() {
   for (const intersect of intersects) {
     const obj = intersect.object;
     if (obj.userData.clickable && !obj.userData.touched) {
+
+      const playerRole = socket.role || (isHost ? 'host' : 'client2');
+
+      if (obj.userData.owner !== 'neutral' && obj.userData.owner !== playerRole) {
+        console.log("Esta esfera pertenece a otro jugador.");
+
+        const offset = new THREE.Vector3(
+          (Math.random() - 0.5) * 1, 
+          (Math.random() - 0.5) * 1,       
+          (Math.random() - 0.5) * 1  
+        );
+
+        obj.position.add(offset);
+
+        socket.send(JSON.stringify({
+          type: 'sphere-move',
+          index: obj.userData.index,
+          position: {
+            x: obj.position.x,
+            y: obj.position.y,
+            z: obj.position.z
+          }
+        }));
+
+        return;
+      }
+
+      if (obj.userData.owner === 'neutral') {
+        const hasTouchedOwn = scene.children.some(s =>
+          s.userData.owner === playerRole && s.userData.touched
+        );
+
+        if (!hasTouchedOwn) {
+          console.log("Primero debes completar tu esfera personalizada.");
+          return;
+        }
+      }
+
       showMinigame(() => {
+
         obj.userData.touched = true;
         obj.userData.owner = socket.role || (isHost ? 'host' : 'client2');
         const currentOwner = obj.userData.owner;
+
         if (!playerScores[currentOwner]) {
           playerScores[currentOwner] = 0;
         }
         playerScores[currentOwner]++;
+
         socket.send(JSON.stringify({
           type: 'score-update',
           scores: playerScores
@@ -338,7 +475,6 @@ function updateProgressCounter() {
 
   progressArea.innerHTML = '';
 
-  // Ordenar de mayor a menor
   const sortedRoles = roles.sort((a, b) => playerScores[b] - playerScores[a]);
 
   const maxScore = playerScores[sortedRoles[0]];
@@ -347,7 +483,7 @@ function updateProgressCounter() {
     const div = document.createElement('div');
     div.className = 'score-box';
     if (playerScores[role] === maxScore && maxScore > 0) {
-      div.classList.add('winner'); // destacar al que va primero
+      div.classList.add('winner'); 
     }
 
     const name =

@@ -20,7 +20,7 @@
     <div id="config-screen" class="screen-background" style="display: none;">
       <div class="content-box">
         <h2>Selecciona el número de esferas</h2>
-        <input type="range" id="sphere-count" min="5" max="30" value="15" />
+        <input type="range" id="sphere-count" min="4" max="31" value="15" />
         <div id="sphere-count-display">15 esferas</div>
         
         <p id="ready-message" style="margin-top: 10px; font-style: italic; color: #ccc;">
@@ -39,32 +39,45 @@
           <strong>¿Cómo se juega?</strong><br/>
           En <strong>CyberDuel AR</strong> deberás encontrar y tocar esferas en tu entorno real.<br/>
           Cada esfera activará un <strong>minijuego aleatorio</strong> que deberás completar para ganar un punto.<br/>
-          Si completas todos los minijuegos de las esferas, ¡ganas la partida!
+          El objetivo es conseguir la <strong>mayoría de esferas</strong> para ganar la partida.
         </p>
-    
+
+        <p>
+          Cada jugador tiene asignadas <strong>esferas de su color</strong> (azul, rojo o amarillo) que solo él puede completar.<br/>
+          Para poder acceder a las <strong>esferas neutrales</strong> (blancas), primero debes completar todas tus esferas de color.<br/>
+          Las esferas neutrales cambian de color según el primer jugador que las complete.
+        </p>
+
+        <p>
+          Puedes <strong>tocar las esferas de color de otros jugadores</strong>, pero no podrás completarlas.<br/>
+          En su lugar, se moverán a una posición aleatoria, haciéndoles más difícil alcanzarlas.
+        </p>
+
         <p>
           <strong>Tipos de minijuegos:</strong><br/>
           - <em>Toca 20 veces</em>: pulsa la pantalla rápidamente hasta llegar a 20 toques.<br/>
           - <em>Introduce el código</em>: memoriza y escribe un código aleatorio de 8 caracteres.<br/>
           - <em>Resuelve una suma</em>: responde correctamente una operación sencilla.<br/>
-          - <em>Mantén presionado</em>: mantén pulsado un botón durante varios segundps.<br/>
+          - <em>Mantén presionado</em>: mantén pulsado un botón durante varios segundos.<br/>
           - <em>Elige el símbolo correcto</em>: toca el símbolo indicado entre varios botones.<br/>
-          - <em>¡NO ME TOQUES!</em>: aparece un gran botón... <br/>
+          - <em>¡NO ME TOQUES!</em>: aparece un gran botón... pero no debes tocarlo.<br/>
           - <em>Trivia</em>: responde preguntas cortas de cultura general.
         </p>
-    
+
         <p>
           <strong>Consejo:</strong><br/>
           ¡Presta atención y actúa rápido! Algunos minijuegos se reinician si fallas.
         </p>
-        
+
         <p style="font-style: italic; color: #ccc;">
           🔎 Nota: Antes de comenzar el juego, colócate cerca de una pared o área amplia y libre de obstáculos.<br/>
           El juego requiere espacio suficiente para colocar las esferas en tu entorno AR.
         </p>
+
         <button id="back-button">Volver</button>
       </div>
     </div>
+
 
     <div id="waiting-overlay" style="display: none;">
       <div class="waiting-box">
@@ -72,6 +85,7 @@
 
         <div id="waiting-status" style="color:white; margin-top:10px;"></div>
 
+        <div id="player-role-info" style="color:white; margin-top:8px;" ></div>
         <button id="start-match-button" style="display:none; margin-top:15px;">
           Iniciar partida
         </button>
